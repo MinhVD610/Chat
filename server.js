@@ -1,8 +1,18 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const mongoose = require('mongoose'); // Thêm thư viện Mongoose
+
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// Khởi tạo AI với API Key của bạn
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Tìm dòng này và sửa lại:
+
+
 
 const app = express();
 app.use(cors());
@@ -20,7 +30,7 @@ const io = new Server(server, {
 // KẾT NỐI MONGODB VÀ TẠO SCHEMA
 // ==========================================
 // TODO: Thay chuỗi này bằng URI thật của bạn
-const mongoURI = "mongodb+srv://minhnc2k4_db_user:CKal1g9AycPWUJ2J@cluster0.8dp4hpy.mongodb.net/?appName=Cluster0";
+const mongoURI = process.env.MONGODB_URI;
 
 
 mongoose.connect(mongoURI)
@@ -72,9 +82,8 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Xử lý khi có tin nhắn mới
     socket.on('client_send_message', async (data) => {
-        // [TÍNH NĂNG MỚI] Lưu tin nhắn vào MongoDB trước khi phát sóng
+        // 1. Lưu tin nhắn của khách/admin vào MongoDB (Giữ nguyên logic cũ của bạn)
         try {
             const newChat = new Chat({
                 roomId: data.roomId,
@@ -87,15 +96,58 @@ io.on('connection', (socket) => {
             console.error("Lỗi lưu tin nhắn:", error);
         }
 
-        // Phát sóng tin nhắn (Giữ nguyên logic cũ)
-        if (data.isAdmin) {
-            io.to(data.roomId).emit('server_broadcast_message', data);
+        // 2. PHÂN LUỒNG XỬ LÝ AI vs NGƯỜI THẬT
+        // Kiểm tra xem khách có gọi @AI không (chỉ xử lý nếu không phải là admin nhắn)
+        if (!data.isAdmin && data.message.toLowerCase().startsWith("@ai ")) {
+            
+            // Phát sóng câu hỏi của khách cho mọi người thấy trước
             io.to('admin_room').emit('server_broadcast_message', data);
+            io.to(data.roomId).emit('server_broadcast_message', data);
+
+            try {
+                // Tách lấy nội dung câu hỏi (Bỏ chữ @ai đi)
+                const userQuestion = data.message.substring(4);
+                
+                // Nhồi thêm bối cảnh để AI nhập vai xuất sắc hơn
+                const prompt = `Bạn là một nhân viên tư vấn thời trang sành điệu của cửa hàng quần áo Moji. 
+                Hãy trả lời câu hỏi sau của khách hàng một cách ngắn gọn, lịch sự, thân thiện và mang đậm phong cách Gen Z. 
+                Câu hỏi của khách: ${userQuestion}`;
+
+                // Gọi Google Gemini trả lời
+                const result = await aiModel.generateContent(prompt);
+                const aiResponseText = result.response.text();
+
+                // Đóng gói câu trả lời của AI thành dạng tin nhắn của Admin
+                const aiMessageData = {
+                    isAdmin: true,            
+                    roomId: data.roomId, 
+                    sender: "Moji AI Bot 🤖", // Tên hiển thị của AI
+                    message: aiResponseText
+                };
+
+                // Lưu câu trả lời của AI vào MongoDB để giữ lịch sử
+                await new Chat(aiMessageData).save();
+
+                // Bắn câu trả lời của AI về cho Khách và Admin cùng xem
+                io.to(data.roomId).emit('server_broadcast_message', aiMessageData);
+                io.to('admin_room').emit('server_broadcast_message', aiMessageData);
+
+            } catch (aiError) {
+                console.error("Lỗi khi gọi AI:", aiError);
+            }
+
         } else {
-            io.to('admin_room').emit('server_broadcast_message', data);
-            io.to(data.roomId).emit('server_broadcast_message', data);
+            // Nếu không gọi @AI thì phát sóng tin nhắn bình thường giữa Admin và Khách
+            if (data.isAdmin) {
+                io.to(data.roomId).emit('server_broadcast_message', data);
+                io.to('admin_room').emit('server_broadcast_message', data);
+            } else {
+                io.to('admin_room').emit('server_broadcast_message', data);
+                io.to(data.roomId).emit('server_broadcast_message', data);
+            }
         }
     });
+
 
     socket.on('disconnect', () => {
         console.log(`[-] Đã ngắt kết nối: ${socket.id}`);
