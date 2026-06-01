@@ -9,7 +9,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // Khởi tạo AI với API Key của bạn
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const aiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const aiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 
 const app = express();
@@ -107,7 +107,7 @@ io.on('connection', (socket) => {
                 const userQuestion = data.message.substring(4);
                 
                 // Nhồi thêm bối cảnh để AI nhập vai xuất sắc hơn
-                const prompt = `Bạn là một nhân viên tư vấn thời trang sành điệu của cửa hàng quần áo Moji. 
+                const prompt = `Bạn là một nhân viên tư vấn thời trang sành điệu của cửa hàng quần áo VieStall. 
                 Hãy trả lời câu hỏi sau của khách hàng một cách ngắn gọn, lịch sự, thân thiện và mang đậm phong cách Gen Z. 
                 Câu hỏi của khách: ${userQuestion}`;
 
@@ -119,7 +119,7 @@ io.on('connection', (socket) => {
                 const aiMessageData = {
                     isAdmin: true,            
                     roomId: data.roomId, 
-                    sender: "Moji AI Bot 🤖", // Tên hiển thị của AI
+                    sender: "VieStall AI Bot 🤖", // Tên hiển thị của AI
                     message: aiResponseText
                 };
 
