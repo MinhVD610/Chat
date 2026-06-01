@@ -13,7 +13,7 @@ const server = http.createServer(app);
 // 2. Cấu hình Socket.io và cấp phép cho domain InfinityFree của bạn
 const io = new Server(server, {
     cors: {
-        origin: "*", // Khi deploy thực tế, hãy thay "*" bằng URL web InfinityFree của bạn để bảo mật (VD: "http://moji.infinityfreeapp.com")
+        origin: "vietstallminh.site.je	", // Khi deploy thực tế, hãy thay "*" bằng URL web InfinityFree của bạn để bảo mật (VD: "http://moji.infinityfreeapp.com")
         methods: ["GET", "POST"]
     }
 });
