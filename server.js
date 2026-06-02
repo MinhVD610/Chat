@@ -19,7 +19,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: ["http://vietstallminh.site.je", "https://vietstallminh.site.je"],
+        origin: ["http://localhost", "http://vietstallminh.site.je", "https://vietstallminh.site.je"],
         methods: ["GET", "POST"]
     }
 });
